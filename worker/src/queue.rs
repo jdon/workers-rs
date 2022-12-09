@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{env::EnvBinding, Date, Error, Result};
 use js_sys::Array;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::JsFuture;
 use worker_sys::{MessageBatch as MessageBatchSys, Queue as EdgeQueue};
@@ -56,7 +56,7 @@ impl<T> MessageBatch<T> {
     /// Iterator that deserializes messages in the message batch. Ordering of messages is not guaranteed.
     pub fn iter(&self) -> MessageIter<'_, T>
     where
-        T: for<'de> Deserialize<'de>,
+        T: DeserializeOwned,
     {
         MessageIter {
             range: 0..self.messages.length(),
@@ -71,7 +71,7 @@ impl<T> MessageBatch<T> {
     /// An array of messages in the batch. Ordering of messages is not guaranteed.
     pub fn messages(&self) -> Result<Vec<Message<T>>>
     where
-        T: for<'de> Deserialize<'de>,
+        T: DeserializeOwned,
     {
         self.iter().collect()
     }
@@ -88,7 +88,7 @@ pub struct MessageIter<'a, T> {
 
 impl<T> MessageIter<'_, T>
 where
-    T: for<'de> Deserialize<'de>,
+    T: DeserializeOwned,
 {
     fn parse_message(&self, message: &JsValue) -> Result<Message<T>> {
         let js_date = js_sys::Date::from(js_sys::Reflect::get(message, self.timestamp_key)?);
@@ -109,7 +109,7 @@ where
 
 impl<T> std::iter::Iterator for MessageIter<'_, T>
 where
-    T: for<'de> Deserialize<'de>,
+    T: DeserializeOwned,
 {
     type Item = Result<Message<T>>;
 
@@ -129,7 +129,7 @@ where
 
 impl<T> std::iter::DoubleEndedIterator for MessageIter<'_, T>
 where
-    T: for<'de> Deserialize<'de>,
+    T: DeserializeOwned,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         let index = self.range.next_back()?;
@@ -139,9 +139,9 @@ where
     }
 }
 
-impl<'a, T> std::iter::FusedIterator for MessageIter<'a, T> where T: for<'de> Deserialize<'de> {}
+impl<'a, T> std::iter::FusedIterator for MessageIter<'a, T> where T: DeserializeOwned {}
 
-impl<'a, T> std::iter::ExactSizeIterator for MessageIter<'a, T> where T: for<'de> Deserialize<'de> {}
+impl<'a, T> std::iter::ExactSizeIterator for MessageIter<'a, T> where T: DeserializeOwned {}
 
 pub struct Queue(EdgeQueue);
 
