@@ -11,23 +11,6 @@ static BODY_KEY_STR: &str = "body";
 static ID_KEY_STR: &str = "id";
 static TIMESTAMP_KEY_STR: &str = "timestamp";
 
-/// # Examples
-///```no_run
-/// #[event(queue)]
-/// pub async fn queue(message_batch: MessageBatch<MyType>, _env: Env, _ctx: Context) -> Result<()> {
-///     for message in message_batch.iter() {
-///         let message = message?;
-///         console_log!(
-///             "Received queue message {:?}, with id {} and timestamp: {}",
-///             message.body,
-///             message.id,
-///             message.timestamp.to_string()
-///         );
-///     }
-///     Ok(())
-/// }
-/// ```
-#[derive(Debug)]
 pub struct MessageBatch<T> {
     inner: MessageBatchSys,
     messages: Array,
@@ -84,12 +67,17 @@ impl<T> MessageBatch<T> {
             data: PhantomData,
         }
     }
+
+    /// An array of messages in the batch. Ordering of messages is not guaranteed.
+    pub fn messages(&self) -> Result<Vec<Message<T>>>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        self.iter().collect()
+    }
 }
 
-pub struct MessageIter<'a, T>
-where
-    T: Deserialize<'a>,
-{
+pub struct MessageIter<'a, T> {
     range: std::ops::Range<u32>,
     array: &'a Array,
     timestamp_key: &'a JsValue,
@@ -98,32 +86,28 @@ where
     data: PhantomData<T>,
 }
 
-fn parse_message<T>(
-    message: &JsValue,
-    timestamp_key: &JsValue,
-    body_key: &JsValue,
-    id_key: &JsValue,
-) -> Result<Message<T>>
+impl<T> MessageIter<'_, T>
 where
     T: for<'de> Deserialize<'de>,
 {
-    let js_date = js_sys::Date::from(js_sys::Reflect::get(message, timestamp_key)?);
-    let id = js_sys::Reflect::get(message, id_key)?
-        .as_string()
-        .ok_or(Error::JsError(
-            "Invalid message batch. Failed to get id from message.".to_string(),
-        ))?;
+    fn parse_message(&self, message: &JsValue) -> Result<Message<T>> {
+        let js_date = js_sys::Date::from(js_sys::Reflect::get(message, self.timestamp_key)?);
+        let id = js_sys::Reflect::get(message, self.id_key)?
+            .as_string()
+            .ok_or(Error::JsError(
+                "Invalid message batch. Failed to get id from message.".to_string(),
+            ))?;
+        let body = serde_wasm_bindgen::from_value(js_sys::Reflect::get(message, self.body_key)?)?;
 
-    let body = serde_wasm_bindgen::from_value(js_sys::Reflect::get(message, body_key)?)?;
-
-    Ok(Message {
-        id,
-        body,
-        timestamp: Date::from(js_date),
-    })
+        Ok(Message {
+            id,
+            body,
+            timestamp: Date::from(js_date),
+        })
+    }
 }
 
-impl<'a, T> std::iter::Iterator for MessageIter<'a, T>
+impl<T> std::iter::Iterator for MessageIter<'_, T>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -134,12 +118,7 @@ where
 
         let value = self.array.get(index);
 
-        Some(parse_message(
-            &value,
-            self.timestamp_key,
-            self.body_key,
-            self.id_key,
-        ))
+        Some(self.parse_message(&value))
     }
 
     #[inline]
@@ -148,7 +127,7 @@ where
     }
 }
 
-impl<'a, T> std::iter::DoubleEndedIterator for MessageIter<'a, T>
+impl<T> std::iter::DoubleEndedIterator for MessageIter<'_, T>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -156,12 +135,7 @@ where
         let index = self.range.next_back()?;
         let value = self.array.get(index);
 
-        Some(parse_message(
-            &value,
-            self.timestamp_key,
-            self.body_key,
-            self.id_key,
-        ))
+        Some(self.parse_message(&value))
     }
 }
 
