@@ -32,7 +32,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: v17.4.0
+          node-version: v18.12.1
 
       - name: Install packages
         run: |
@@ -47,7 +47,7 @@ jobs:
           cd miniflare
           git checkout 9d96aaa66aa48eb1107c86fe24cbfd444249533c
           cd packages/miniflare
-          npm i --omit=dev
+          npm i
           npm link
           cd ../..
           npm i
