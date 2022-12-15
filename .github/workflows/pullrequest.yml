@@ -59,7 +59,7 @@ jobs:
           sudo apt install -y build-essential libssl-dev netcat
 
       - name: Install miniflare
-        run: npm install -g miniflare
+        run: npm install -g 'cloudflare/miniflare#9d96aaa66aa48eb1107c86fe24cbfd444249533c'
 
       - name: Install wasmpack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
