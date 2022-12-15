@@ -41,15 +41,16 @@ jobs:
           sudo apt install -y build-essential libssl-dev netcat
 
       - name: Install miniflare
+        shell: bash
         run: |
           git clone https://github.com/cloudflare/miniflare.git
           cd miniflare
           git checkout 9d96aaa66aa48eb1107c86fe24cbfd444249533c
           cd packages/miniflare
-          npm i
+          npm ci --omit=dev
           npm link
           cd ../..
-          npm i
+          npm ci
           npm run build
 
       - name: Install stable toolchain
