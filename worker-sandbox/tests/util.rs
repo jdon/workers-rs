@@ -64,10 +64,8 @@ pub fn options(
     builder_fn: impl FnOnce(RequestBuilder) -> RequestBuilder,
 ) -> Response {
     expect_wrangler();
-    let builder = Client::new().request(
-        Method::OPTIONS,
-        format!("http://127.0.0.1:8787/{endpoint}"),
-    );
+    let builder =
+        Client::new().request(Method::OPTIONS, format!("http://127.0.0.1:8787/{endpoint}"));
     let builder = builder_fn(builder);
 
     builder
